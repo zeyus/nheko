@@ -37,6 +37,8 @@
 
 #if defined(Q_OS_MACOS)
 #include "notifications/Manager.h"
+#include <QQuickWindow>
+#include <QSGRendererInterface>
 #endif
 
 #ifdef GSTREAMER_AVAILABLE
@@ -174,6 +176,12 @@ main(int argc, char *argv[])
         if (factor != -1)
             qputenv("QT_SCALE_FACTOR", QString::number(factor).toUtf8());
     }
+#endif
+
+#if defined(Q_OS_MACOS) && defined(GSTREAMER_AVAILABLE)
+    // qml6glsink needs the OpenGL context
+    // on macos the default is metal, so make it opengl here
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 #endif
 
     QString matrixUri;

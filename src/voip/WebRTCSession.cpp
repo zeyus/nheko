@@ -636,6 +636,10 @@ WebRTCSession::havePlugins(bool isVideo,
         return false;
 
     static constexpr std::initializer_list<const char *> audio_elements = {"audioconvert",
+// MacOS, ensure the Macos plugin
+#if defined(Q_OS_MACOS)
+                                                                            "osxaudiosrc",
+#endif
                                                                            "audioresample",
                                                                            "autoaudiosink",
                                                                            "capsfilter",
@@ -718,9 +722,10 @@ WebRTCSession::havePlugins(bool isVideo,
                 haveScreensharePlugins = check_plugins({"waylandsink"});
             } else if (QGuiApplication::platformName() == QStringLiteral("windows")) {
                 haveScreensharePlugins = check_plugins({"d3d11videosink"});
-            } else {
+            } else if (QGuiApplication::platformName() != QStringLiteral("cocoa")) {
                 haveScreensharePlugins = check_plugins({"ximagesink"});
             }
+            // macOS: use the same qml6glsink as video calls
         }
         if (haveScreensharePlugins) {
             if (screenShareType == ScreenShareType::X11) {
@@ -728,6 +733,9 @@ WebRTCSession::havePlugins(bool isVideo,
             } else if (screenShareType == ScreenShareType::D3D11) {
                 haveScreensharePlugins =
                   check_plugins({"d3d11screencapturesrc", "d3d11download", "d3d11convert"});
+            // AVF is for MacOS
+            } else if (screenShareType == ScreenShareType::AVF) {
+                haveScreensharePlugins = check_plugins({"avfvideosrc"});
             } else {
                 haveScreensharePlugins = check_plugins({"pipewiresrc"});
             }
@@ -1082,7 +1090,20 @@ WebRTCSession::addVideoPipeline(int vp8PayloadType)
 
         GstElement *screencastsrc = nullptr;
 
-        if (screenShareType_ == ScreenShareType::X11) {
+        if (screenShareType_ == ScreenShareType::AVF) {
+            GstElement *avfvideosrc = gst_element_factory_make("avfvideosrc", "screenshare");
+            if (!avfvideosrc) {
+                nhlog::ui()->error("WebRTC: failed to create avfvideosrc");
+                return false;
+            }
+            g_object_set(avfvideosrc, "capture-screen", TRUE, nullptr);
+            g_object_set(
+              avfvideosrc, "capture-screen-cursor", !settings->screenShareHideCursor(), nullptr);
+            g_object_set(avfvideosrc, "do-timestamp", (gboolean)1, nullptr);
+
+            gst_bin_add(GST_BIN(pipe_), avfvideosrc);
+            screencastsrc = avfvideosrc;
+        } else if (screenShareType_ == ScreenShareType::X11) {
             GstElement *ximagesrc = gst_element_factory_make("ximagesrc", "screenshare");
             if (!ximagesrc) {
                 nhlog::ui()->error("WebRTC: failed to create ximagesrc");

@@ -395,10 +395,32 @@ guix environment nheko
 
 #### macOS (Xcode 10.2 or later)
 
+Install the dependencies with homebrew:
+
 ```bash
 brew update
 brew install qt6 lmdb cmake llvm spdlog cmark libolm qtkeychain
 ```
+
+Gstreamer (not the homebrew version, which is missing plugins) is also required for VoIP support:
+
+Install both runtime and development packages from the [GStreamer website](https://gstreamer.freedesktop.org/download/).
+
+Append (not prepend) the following to your PATH environment variable: `/Library/Frameworks/GStreamer.framework/Versions/Current/bin`.
+
+e.g.
+
+```bash
+export PATH="/Library/Frameworks/GStreamer.framework/Versions/Current/bin:$PATH"
+```
+
+Set `PKG_CONFIG_PATH` to include the gstreamer pkgconfig directory:
+
+```bash
+export PKG_CONFIG_PATH="/Library/Frameworks/GStreamer.framework/Versions/Current/lib/pkgconfig"
+```
+
+Neither the homebrew or official gstreamer packages include the qml6glsink plugin, which is required for video calls. That also needs to be built for VoIP (it is one of the gst-plugins-good).
 
 #### Windows
 
