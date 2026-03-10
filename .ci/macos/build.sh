@@ -43,12 +43,18 @@ if brew list gstreamer &>/dev/null 2>&1; then
         git sparse-checkout set subprojects/gst-plugins-good
         cd subprojects/gst-plugins-good
 
-        # PKG_CONFIG_PATH: GStreamer only
+        # Disable cmake-based Qt6 discovery: cmake searches system paths (homebrew)
+        # causing a conflict (proboably doesn't apply in CI)
+        MESON_NATIVE_FILE="/tmp/nheko-qml6-native.ini"
+        printf '[binaries]\nmoc = '"'"'%s/bin/moc'"'"'\nrcc = '"'"'%s/bin/rcc'"'"'\nuic = '"'"'%s/bin/uic'"'"'\nqmake = '"'"'%s/bin/qmake6'"'"'\n[cmake]\nCMAKE_DISABLE_FIND_PACKAGE_Qt6 = true\n' \
+            "${QT_BASEPATH}" "${QT_BASEPATH}" "${QT_BASEPATH}" "${QT_BASEPATH}" \
+            > "${MESON_NATIVE_FILE}"
+
         PKG_CONFIG_PATH="${GST_PREFIX}/lib/pkgconfig" \
-        CMAKE_PREFIX_PATH="${QT_BASEPATH}/lib/cmake" \
         CXXFLAGS="-I${QT_BASEPATH}/lib/QtGui.framework/Headers -I${QT_BASEPATH}/lib/QtGui.framework/Headers/${QT_VER}/QtGui -F${QT_BASEPATH}/lib" \
         PATH="${QT_BASEPATH}/bin:${PATH}" \
         meson setup build \
+            --native-file "${MESON_NATIVE_FILE}" \
             --prefix="${GST_PREFIX}" \
             -Dauto_features=disabled \
             -Dqt6=enabled
