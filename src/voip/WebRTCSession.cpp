@@ -24,6 +24,10 @@
 
 #ifdef GSTREAMER_AVAILABLE
 #include "MainWindow.h"
+#if defined(Q_OS_MACOS)
+#include <QCoreApplication>
+#include <QFileInfo>
+#endif
 extern "C"
 {
 #include "gst/gl/gstgldisplay.h"
@@ -81,6 +85,19 @@ WebRTCSession::init(std::string *errorMessage)
 #ifdef GSTREAMER_AVAILABLE
     if (initialised_)
         return true;
+
+#if defined(Q_OS_MACOS)
+    // When running from an app bundle, point GStreamer at the bundled plugins
+    // so that qml6glsink (and any other bundled plugins) are found.
+    // This must happen before gst_init_check().
+    QString bundlePluginPath =
+      QCoreApplication::applicationDirPath() + "/../PlugIns/gstreamer-1.0";
+    if (QFileInfo::exists(bundlePluginPath)) {
+        qputenv("GST_PLUGIN_PATH", bundlePluginPath.toUtf8());
+        // Disable the system registry cache so plugins outside the bundle are not loaded
+        qputenv("GST_REGISTRY_UPDATE", "no");
+    }
+#endif
 
     GError *error = nullptr;
     if (!gst_init_check(nullptr, nullptr, &error)) {
