@@ -63,7 +63,7 @@ jobs:
 
           cd subprojects/gst-plugins-good
 
-          PKG_CONFIG_PATH="${GST_PREFIX}/lib/pkgconfig:$(brew --prefix)/lib/pkgconfig" \
+          PKG_CONFIG_PATH="${GST_PREFIX}/lib/pkgconfig" \
           CMAKE_PREFIX_PATH="${QT_BASEPATH}/lib/cmake" \
           CXXFLAGS="-I${QT_BASEPATH}/lib/QtGui.framework/Headers -I${QT_BASEPATH}/lib/QtGui.framework/Headers/${QT_VERSION}/QtGui -F${QT_BASEPATH}/lib" \
           PATH="${QT_BASEPATH}/bin:$PATH" \

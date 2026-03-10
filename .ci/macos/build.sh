@@ -43,7 +43,8 @@ if brew list gstreamer &>/dev/null 2>&1; then
         git sparse-checkout set subprojects/gst-plugins-good
         cd subprojects/gst-plugins-good
 
-        PKG_CONFIG_PATH="${GST_PREFIX}/lib/pkgconfig:$(brew --prefix)/lib/pkgconfig" \
+        # PKG_CONFIG_PATH: GStreamer only
+        PKG_CONFIG_PATH="${GST_PREFIX}/lib/pkgconfig" \
         CMAKE_PREFIX_PATH="${QT_BASEPATH}/lib/cmake" \
         CXXFLAGS="-I${QT_BASEPATH}/lib/QtGui.framework/Headers -I${QT_BASEPATH}/lib/QtGui.framework/Headers/${QT_VER}/QtGui -F${QT_BASEPATH}/lib" \
         PATH="${QT_BASEPATH}/bin:${PATH}" \
