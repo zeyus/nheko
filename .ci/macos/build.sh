@@ -33,39 +33,55 @@ if brew list gstreamer &>/dev/null 2>&1; then
 
     echo "Building GStreamer qml6glsink plugin (GStreamer ${GST_VERSION}, Qt ${QT_VER})…"
 
-    # Clone gstreamer to build the qml6glsink plugin
-    git clone --depth 1 --filter=blob:none --sparse \
-        --branch "${GST_VERSION}" \
-        https://gitlab.freedesktop.org/gstreamer/gstreamer.git \
-        /tmp/gstreamer-src
-    (
-        cd /tmp/gstreamer-src
-        git sparse-checkout set subprojects/gst-plugins-good
-        cd subprojects/gst-plugins-good
+    if [[ -d "${GST_PREFIX}/lib/gstreamer-1.0/libgstqml6.dylib" ]]; then
+        echo "GStreamer qml6glsink plugin already installed; skipping build."
+        VOIP_FLAG="-DVOIP=ON"
+    else
+        echo "GStreamer qml6glsink plugin not found; building from source."
+        # check if the repository is already cloned
+        if [[ ! -d "/tmp/gstreamer-src" ]]; then
+            git clone --depth 1 --filter=blob:none --sparse \
+                --branch "${GST_VERSION}" \
+                https://gitlab.freedesktop.org/gstreamer/gstreamer.git \
+                /tmp/gstreamer-src
+        else
+            echo "GStreamer source already cloned; Making sure it's up to date"
+            (
+                cd /tmp/gstreamer-src
+                git fetch --depth 1 origin "${GST_VERSION}"
+                git checkout FETCH_HEAD
+                git sparse-checkout set subprojects/gst-plugins-good
+            )
+        fi
+        (
+            cd /tmp/gstreamer-src
+            git sparse-checkout set subprojects/gst-plugins-good
+            cd subprojects/gst-plugins-good
 
-        # Disable cmake-based Qt6 discovery: cmake searches system paths (homebrew)
-        # causing a conflict (proboably doesn't apply in CI)
-        MESON_NATIVE_FILE="/tmp/nheko-qml6-native.ini"
-        printf '[binaries]\nmoc = '"'"'%s/bin/moc'"'"'\nrcc = '"'"'%s/bin/rcc'"'"'\nuic = '"'"'%s/bin/uic'"'"'\nqmake = '"'"'%s/bin/qmake6'"'"'\n[cmake]\nCMAKE_DISABLE_FIND_PACKAGE_Qt6 = true\n' \
-            "${QT_BASEPATH}" "${QT_BASEPATH}" "${QT_BASEPATH}" "${QT_BASEPATH}" \
-            > "${MESON_NATIVE_FILE}"
+            # Disable cmake-based Qt6 discovery: cmake searches system paths (homebrew)
+            # causing a conflict (proboably doesn't apply in CI)
+            MESON_NATIVE_FILE="/tmp/nheko-qml6-native.ini"
+            printf '[binaries]\nmoc = '"'"'%s/bin/moc'"'"'\nrcc = '"'"'%s/bin/rcc'"'"'\nuic = '"'"'%s/bin/uic'"'"'\nqmake = '"'"'%s/bin/qmake6'"'"'\n[cmake]\nCMAKE_DISABLE_FIND_PACKAGE_Qt6 = "true"\n' \
+                "${QT_BASEPATH}" "${QT_BASEPATH}" "${QT_BASEPATH}" "${QT_BASEPATH}" \
+                > "${MESON_NATIVE_FILE}"
 
-        PKG_CONFIG_PATH="${GST_PREFIX}/lib/pkgconfig" \
-        CXXFLAGS="-I${QT_BASEPATH}/lib/QtGui.framework/Headers -I${QT_BASEPATH}/lib/QtGui.framework/Headers/${QT_VER}/QtGui -F${QT_BASEPATH}/lib" \
-        PATH="${QT_BASEPATH}/bin:${PATH}" \
-        meson setup build \
-            --native-file "${MESON_NATIVE_FILE}" \
-            --prefix="${GST_PREFIX}" \
-            -Dauto_features=disabled \
-            -Dqt6=enabled
+            PKG_CONFIG_PATH="${GST_PREFIX}/lib/pkgconfig" \
+            CXXFLAGS="-I${QT_BASEPATH}/lib/QtGui.framework/Headers -I${QT_BASEPATH}/lib/QtGui.framework/Headers/${QT_VER}/QtGui -F${QT_BASEPATH}/lib" \
+            PATH="${QT_BASEPATH}/bin:${PATH}" \
+            meson setup build \
+                --native-file "${MESON_NATIVE_FILE}" \
+                --prefix="${GST_PREFIX}" \
+                -Dauto_features=disabled \
+                -Dqt6=enabled
 
-        ninja -C build ext/qt6/libgstqml6.dylib
-        ninja -C build install
-    )
+            ninja -C build ext/qt6/libgstqml6.dylib
+            ninja -C build install
+        )
 
-    export PKG_CONFIG_PATH="${GST_PREFIX}/lib/pkgconfig:$(brew --prefix)/lib/pkgconfig"
-    VOIP_FLAG="-DVOIP=ON"
-    echo "GStreamer qml6glsink installed; VoIP support enabled."
+        export PKG_CONFIG_PATH="${GST_PREFIX}/lib/pkgconfig:$(brew --prefix)/lib/pkgconfig"
+        VOIP_FLAG="-DVOIP=ON"
+        echo "GStreamer qml6glsink installed; VoIP support enabled."
+    fi
 else
     echo "GStreamer not found; VoIP support disabled."
 fi

@@ -642,6 +642,18 @@ if(VOIP)
     if (WIN32)
         pkg_check_modules(GSTREAMER REQUIRED IMPORTED_TARGET gstreamer-d3d11-1.0)
     endif()
+    if(APPLE AND TARGET PkgConfig::GSTREAMER)
+        # AGL (Apple OpenGL) was removed in macOS 14+. GStreamer's pkg-config files
+        # may still reference it on older builds. Strip it so the linker doesn't error.
+        # cmake may store it as "-framework AGL" (single item) or as two items.
+        foreach(_prop INTERFACE_LINK_LIBRARIES INTERFACE_LINK_OPTIONS INTERFACE_COMPILE_OPTIONS)
+            get_target_property(_gst_val PkgConfig::GSTREAMER ${_prop})
+            if(_gst_val)
+                list(FILTER _gst_val EXCLUDE REGEX "^(-framework )?AGL$")
+                set_target_properties(PkgConfig::GSTREAMER PROPERTIES ${_prop} "${_gst_val}")
+            endif()
+        endforeach()
+    endif()
 endif()
 
 if(X11 AND NOT WIN32 AND NOT APPLE AND NOT HAIKU)
