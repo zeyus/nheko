@@ -52,17 +52,18 @@ modules:
     no-autogen: true
     subdir: libraries/liblmdb
   - name: libevent
-    buildsystem: autotools
+    buildsystem: cmake-ninja
     config-opts:
-      - --disable-shared
-      - --prefix=/app
-      - --disable-openssl
+      - -DEVENT__DISABLE_OPENSSL=ON
+      - -DEVENT__DISABLE_BENCHMARK=ON
+      - -DEVENT__DISABLE_TESTS=ON
+      - -DEVENT__DISABLE_REGRESS=ON
+      - -DEVENT__DISABLE_SAMPLES=ON
+      - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
     sources:
       - sha256: 92e6de1be9ec176428fd2367677e61ceffc2ee1cb119035037a27d346b0403bb
         type: archive
         url: https://github.com/libevent/libevent/releases/download/release-2.1.12-stable/libevent-2.1.12-stable.tar.gz
-    make-install-args:
-      - prefix=/app
     no-autogen: true
   - name: cmark
     buildsystem: cmake-ninja
@@ -92,6 +93,7 @@ modules:
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+      - -DOLM_TESTS=OFF
     buildsystem: cmake-ninja
     sources:
       - commit: 7e0c8277032e40308987257b711b38af8d77cc69
@@ -174,8 +176,8 @@ modules:
     config-opts:
       - -Ddefault_library=static
     sources:
-      - commit: f49993e6ad3b2f4fa6503f46d547351fa276ac84
-        tag: v0.3.1
+      - commit: 1c3a9029581a08749874226b68bb40c196ed21bb
+        tag: v0.3.2
         type: git
         url: https://nheko.im/nheko-reborn/coeurl.git
   - name: mtxclient
