@@ -272,7 +272,7 @@ build-macos-as:
     TART_REGISTRY_PASSWORD: $CI_JOB_TOKEN
   tags: [macos-tart]
   before_script:
-    - brew install python3 pkg-config clang-format cmake ninja openssl gstreamer pipx
+    - brew install python3 pkg-config clang-format cmake ninja openssl gstreamer meson pipx
     - pipx install aqtinstall
     - pipx ensurepath
     - . ~/.zshrc
