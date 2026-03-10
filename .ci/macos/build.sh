@@ -33,9 +33,8 @@ if brew list gstreamer &>/dev/null 2>&1; then
 
     echo "Building GStreamer qml6glsink plugin (GStreamer ${GST_VERSION}, Qt ${QT_VER})…"
 
-    if [[ -d "${GST_PREFIX}/lib/gstreamer-1.0/libgstqml6.dylib" ]]; then
+    if [[ -f "${GST_PREFIX}/lib/gstreamer-1.0/libgstqml6.dylib" ]]; then
         echo "GStreamer qml6glsink plugin already installed; skipping build."
-        VOIP_FLAG="-DVOIP=ON"
     else
         echo "GStreamer qml6glsink plugin not found; building from source."
         # check if the repository is already cloned
@@ -59,7 +58,7 @@ if brew list gstreamer &>/dev/null 2>&1; then
             cd subprojects/gst-plugins-good
 
             # Disable cmake-based Qt6 discovery: cmake searches system paths (homebrew)
-            # causing a conflict (proboably doesn't apply in CI)
+            # causing a conflict (probably doesn't apply in CI)
             MESON_NATIVE_FILE="/tmp/nheko-qml6-native.ini"
             printf '[binaries]\nmoc = '"'"'%s/bin/moc'"'"'\nrcc = '"'"'%s/bin/rcc'"'"'\nuic = '"'"'%s/bin/uic'"'"'\nqmake = '"'"'%s/bin/qmake6'"'"'\n[cmake]\nCMAKE_DISABLE_FIND_PACKAGE_Qt6 = '"'"'true'"'"'\n' \
                 "${QT_BASEPATH}" "${QT_BASEPATH}" "${QT_BASEPATH}" "${QT_BASEPATH}" \
@@ -77,11 +76,26 @@ if brew list gstreamer &>/dev/null 2>&1; then
             ninja -C build ext/qt6/libgstqml6.dylib
             ninja -C build install
         )
-
-        export PKG_CONFIG_PATH="${GST_PREFIX}/lib/pkgconfig:$(brew --prefix)/lib/pkgconfig"
-        VOIP_FLAG="-DVOIP=ON"
-        echo "GStreamer qml6glsink installed; VoIP support enabled."
     fi
+
+    # Patch GStreamer .pc files into a temp dir to strip frameworks removed from
+    # newer macOS (AGL since macOS 14, OpenGL deprecated/removed in macOS 26+).
+    # Modifying a tmpdir copy avoids touching homebrew's installed files.
+    GST_PC_PATCHED="/tmp/nheko-gst-pc-patched"
+    rm -rf "${GST_PC_PATCHED}"
+    mkdir -p "${GST_PC_PATCHED}"
+    cp "${GST_PREFIX}/lib/pkgconfig/"*.pc "${GST_PC_PATCHED}/"
+    MACOS_MAJOR="$(sw_vers -productVersion | cut -d. -f1)"
+    if [[ "${MACOS_MAJOR}" -ge 26 ]]; then
+        # macOS 26+ removed both AGL and OpenGL frameworks
+        sed -i '' 's/ -framework AGL\b//g; s/ -framework OpenGL\b//g' "${GST_PC_PATCHED}"/*.pc
+    elif [[ "${MACOS_MAJOR}" -ge 14 ]]; then
+        # macOS 14-25: only AGL removed
+        sed -i '' 's/ -framework AGL\b//g' "${GST_PC_PATCHED}"/*.pc
+    fi
+    export PKG_CONFIG_PATH="${GST_PC_PATCHED}:$(brew --prefix)/lib/pkgconfig"
+    VOIP_FLAG="-DVOIP=ON"
+    echo "GStreamer qml6glsink installed; VoIP support enabled."
 else
     echo "GStreamer not found; VoIP support disabled."
 fi
