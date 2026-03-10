@@ -51,8 +51,9 @@ jobs:
       - name: Download and install GStreamer packages
         run: |
           BASE_URL="https://gstreamer.freedesktop.org/data/pkg/osx/${GST_VERSION}"
-          curl -fL -o /tmp/gst-runtime.pkg "${BASE_URL}/gstreamer-1.0-${GST_VERSION}-universal.pkg"
-          curl -fL -o /tmp/gst-devel.pkg    "${BASE_URL}/gstreamer-1.0-devel-${GST_VERSION}-universal.pkg"
+          UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          curl -fL -A "$UA" -o /tmp/gst-runtime.pkg "${BASE_URL}/gstreamer-1.0-${GST_VERSION}-universal.pkg"
+          curl -fL -A "$UA" -o /tmp/gst-devel.pkg    "${BASE_URL}/gstreamer-1.0-devel-${GST_VERSION}-universal.pkg"
           sudo installer -pkg /tmp/gst-runtime.pkg -target /
           sudo installer -pkg /tmp/gst-devel.pkg    -target /
 
