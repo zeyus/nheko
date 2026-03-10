@@ -404,7 +404,7 @@ brew install python3 pkg-config clang-format cmake ninja openssl gstreamer meson
 pipx install aqtinstall
 pipx ensurepath
 mkdir -p $HOME/Qt
-aqt -c aqt/settings.ini install-qt --outputdir $HOME/qt mac desktop 6.8 clang_64 -m qtlocation qtimageformats qtmultimedia qtpositioning qtshadertools
+aqt -c aqt/settings.ini install-qt --outputdir $HOME/qt mac desktop 6.10 clang_64 -m qtlocation qtimageformats qtmultimedia qtpositioning qtshadertools
 ```
 
 Build nheko:
