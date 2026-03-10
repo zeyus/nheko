@@ -395,32 +395,27 @@ guix environment nheko
 
 #### macOS (Xcode 10.2 or later)
 
-Install the dependencies with homebrew:
+##### Using CI build script
+
+Install dependencies (see: [.gitlab-ci.yml](./.gitlab-ci.yml))
 
 ```bash
-brew update
-brew install qt6 lmdb cmake llvm spdlog cmark libolm qtkeychain
+brew install python3 pkg-config clang-format cmake ninja openssl gstreamer meson pipx
+pipx install aqtinstall
+pipx ensurepath
+mkdir -p $HOME/Qt
+aqt install-qt --outputdir $HOME/qt mac desktop 6.8 clang_64 -m qtlocation qtimageformats qtmultimedia qtpositioning qtshadertools
 ```
 
-Gstreamer (not the homebrew version, which is missing plugins) is also required for VoIP support:
-
-Install both runtime and development packages from the [GStreamer website](https://gstreamer.freedesktop.org/download/).
-
-Append (not prepend) the following to your PATH environment variable: `/Library/Frameworks/GStreamer.framework/Versions/Current/bin`.
-
-e.g.
+Build nheko:
 
 ```bash
-export PATH="/Library/Frameworks/GStreamer.framework/Versions/Current/bin:$PATH"
+export QTPATH=($HOME/qt/6.*/macos/bin)
+cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$QTPATH
+export PATH="$QTPATH:${PATH}"
+./.ci/macos/build.sh
 ```
 
-Set `PKG_CONFIG_PATH` to include the gstreamer pkgconfig directory:
-
-```bash
-export PKG_CONFIG_PATH="/Library/Frameworks/GStreamer.framework/Versions/Current/lib/pkgconfig"
-```
-
-Neither the homebrew or official gstreamer packages include the qml6glsink plugin, which is required for video calls. That also needs to be built for VoIP (it is one of the gst-plugins-good).
 
 #### Windows
 

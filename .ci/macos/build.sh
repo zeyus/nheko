@@ -61,7 +61,7 @@ if brew list gstreamer &>/dev/null 2>&1; then
             # Disable cmake-based Qt6 discovery: cmake searches system paths (homebrew)
             # causing a conflict (proboably doesn't apply in CI)
             MESON_NATIVE_FILE="/tmp/nheko-qml6-native.ini"
-            printf '[binaries]\nmoc = '"'"'%s/bin/moc'"'"'\nrcc = '"'"'%s/bin/rcc'"'"'\nuic = '"'"'%s/bin/uic'"'"'\nqmake = '"'"'%s/bin/qmake6'"'"'\n[cmake]\nCMAKE_DISABLE_FIND_PACKAGE_Qt6 = "true"\n' \
+            printf '[binaries]\nmoc = '"'"'%s/bin/moc'"'"'\nrcc = '"'"'%s/bin/rcc'"'"'\nuic = '"'"'%s/bin/uic'"'"'\nqmake = '"'"'%s/bin/qmake6'"'"'\n[cmake]\nCMAKE_DISABLE_FIND_PACKAGE_Qt6 = '"'"'true'"'"'\n' \
                 "${QT_BASEPATH}" "${QT_BASEPATH}" "${QT_BASEPATH}" "${QT_BASEPATH}" \
                 > "${MESON_NATIVE_FILE}"
 
