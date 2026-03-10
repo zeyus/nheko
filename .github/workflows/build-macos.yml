@@ -1,0 +1,110 @@
+name: macOS Build (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      gstreamer_version:
+        description: 'GStreamer version (must match an official release pkg and git tag)'
+        required: false
+        default: '1.28.1'
+      qt_version:
+        description: 'Qt version for aqtinstall'
+        required: false
+        default: '6.10.2'
+
+jobs:
+  build:
+    name: Build nheko on macOS (Apple Silicon)
+    runs-on: macos-14
+
+    env:
+      GST_VERSION: ${{ inputs.gstreamer_version || '1.28.1' }}
+      QT_VERSION: ${{ inputs.qt_version || '6.10.2' }}
+      GST_FRAMEWORK: /Library/Frameworks/GStreamer.framework/Versions/1.0
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          brew install cmake ninja pkg-config python3 pipx meson openssl clang-format
+
+      - name: Install Qt via aqtinstall
+        run: |
+          pipx install aqtinstall
+          pipx ensurepath
+          mkdir -p "$HOME/qt"
+          ~/.local/bin/aqt install-qt \
+            --outputdir "$HOME/qt" \
+            mac desktop "$QT_VERSION" clang_64 \
+            -m qtlocation qtimageformats qtmultimedia qtpositioning qtshadertools
+
+      - name: Cache Hunter dependencies
+        uses: actions/cache@v4
+        with:
+          path: .hunter
+          key: hunter-macos-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
+          restore-keys: hunter-macos-
+
+      - name: Download and install GStreamer packages
+        run: |
+          BASE_URL="https://gstreamer.freedesktop.org/data/pkg/osx/${GST_VERSION}"
+          curl -fL -o /tmp/gst-runtime.pkg "${BASE_URL}/gstreamer-1.0-${GST_VERSION}-universal.pkg"
+          curl -fL -o /tmp/gst-devel.pkg    "${BASE_URL}/gstreamer-1.0-devel-${GST_VERSION}-universal.pkg"
+          sudo installer -pkg /tmp/gst-runtime.pkg -target /
+          sudo installer -pkg /tmp/gst-devel.pkg    -target /
+
+      - name: Build GStreamer qml6glsink plugin from source
+        run: |
+          QT_BASEPATH="$HOME/qt/$QT_VERSION/macos"
+
+          # Sparse-clone only gst-plugins-good from the monorepo
+          git clone --depth 1 --filter=blob:none --sparse \
+            --branch "$GST_VERSION" \
+            https://gitlab.freedesktop.org/gstreamer/gstreamer.git \
+            /tmp/gstreamer-src
+          cd /tmp/gstreamer-src
+          git sparse-checkout set subprojects/gst-plugins-good
+
+          cd subprojects/gst-plugins-good
+
+          PKG_CONFIG_PATH="${GST_FRAMEWORK}/lib/pkgconfig" \
+          CMAKE_PREFIX_PATH="${QT_BASEPATH}/lib/cmake" \
+          CXXFLAGS="-I${QT_BASEPATH}/lib/QtGui.framework/Headers -I${QT_BASEPATH}/lib/QtGui.framework/Headers/${QT_VERSION}/QtGui -F${QT_BASEPATH}/lib" \
+          PATH="${QT_BASEPATH}/bin:$PATH" \
+          meson setup build \
+            --prefix="${GST_FRAMEWORK}" \
+            -Dauto_features=disabled \
+            -Dqt6=enabled
+
+          ninja -C build ext/qt6/libgstqml6.dylib
+          sudo ninja -C build install
+
+      - name: Configure nheko
+        run: |
+          QT_BASEPATH="$HOME/qt/$QT_VERSION/macos"
+          export PATH="${QT_BASEPATH}/bin:${PATH}"
+          export PKG_CONFIG_PATH="${GST_FRAMEWORK}/lib/pkgconfig"
+          export CMAKE_BUILD_PARALLEL_LEVEL="$(sysctl -n hw.ncpu)"
+
+          cmake -GNinja -S. -Bbuild \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_INSTALL_PREFIX="nheko.temp" \
+            -DHUNTER_ROOT=".hunter" \
+            -DHUNTER_ENABLED=ON \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DKDSingleApplication_STATIC=ON \
+            -DKDSingleApplication_EXAMPLES=OFF \
+            -DHUNTER_CONFIGURATION_TYPES=RelWithDebInfo \
+            -DQt6_DIR="${QT_BASEPATH}/lib/cmake/Qt6" \
+            -DCMAKE_PREFIX_PATH="${GST_FRAMEWORK};${QT_BASEPATH}/lib/cmake" \
+            -DVOIP=ON \
+            -DCI_BUILD=ON \
+            -DFETCHCONTENT_QUIET=OFF
+
+      - name: Build nheko
+        run: |
+          export CMAKE_BUILD_PARALLEL_LEVEL="$(sysctl -n hw.ncpu)"
+          cmake --build build
